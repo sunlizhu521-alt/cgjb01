@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>采购 2026 降本台账数据看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --line: #d8e0ea;
+      --text: #172033;
+      --muted: #66758c;
+      --blue: #1769e0;
+      --teal: #07847f;
+      --amber: #b7791f;
+      --red: #c2413b;
+      --shadow: 0 8px 24px rgba(23, 32, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .header-inner {
+      width: min(1440px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 18px 0 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .shell {
+      width: min(1440px, calc(100% - 36px));
+      margin: 18px auto 32px;
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    aside,
+    .section,
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    aside {
+      position: sticky;
+      top: 16px;
+      padding: 16px;
+    }
+
+    .section {
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .section h2,
+    aside h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 7px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      min-height: 38px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    input[type="file"] {
+      padding: 8px;
+      background: var(--panel-soft);
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #fff;
+      color: var(--blue);
+    }
+
+    .hint {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 6px;
+      background: #eef6ff;
+      color: #1f4e85;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .status {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      padding: 16px;
+      min-height: 104px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 12px;
+      font-size: 25px;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      width: auto;
+      min-height: 38px;
+      padding: 0 14px;
+      background: transparent;
+      color: var(--muted);
+      border: 0;
+      border-bottom: 3px solid transparent;
+      border-radius: 0;
+    }
+
+    .tab.active {
+      color: var(--blue);
+      border-bottom-color: var(--blue);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      max-height: 520px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-soft);
+      z-index: 1;
+      color: #344256;
+      font-weight: 700;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 260px 1fr 150px;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    .empty {
+      padding: 18px;
+      border-radius: 8px;
+      background: var(--panel-soft);
+      color: var(--muted);
+      border: 1px dashed var(--line);
+    }
+
+    .good {
+      background: #eaf8f1;
+      color: #176944;
+      border-color: #bfe8d2;
+    }
+
+    .warn {
+      background: #fff7e6;
+      color: #855b16;
+      border-color: #f3d28f;
+    }
+
+    @media (max-width: 960px) {
+      .header-inner,
+      .shell {
+        width: min(100% - 24px, 720px);
+      }
+
+      .shell,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        position: static;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .filters {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      h1 {
+        font-size: 23px;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>采购 2026 降本台账数据看板</h1>
+        <p class="subtitle">上传 Excel 后，在浏览器内解析台账并生成 KPI、供应商排行、月度趋势与 Q1 对账异常。</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside>
+      <h2>数据源</h2>
+      <label for="fileInput">上传采购降本台账 Excel</label>
+      <input id="fileInput" type="file" accept=".xlsx,.xlsm,.xls" />
+
+      <label for="partsSheet">配件采购工作表</label>
+      <select id="partsSheet" disabled></select>
+
+      <label for="crossSheet">跨境成品采购工作表</label>
+      <select id="crossSheet" disabled></select>
+
+      <label for="topN">供应商排行数量</label>
+      <select id="topN">
+        <option value="5">5</option>
+        <option value="10">10</option>
+        <option value="15" selected>15</option>
+        <option value="20">20</option>
+        <option value="30">30</option>
+      </select>
+
+      <button id="parseBtn" style="margin-top: 16px;" disabled>解析数据</button>
+      <p id="status" class="status">请先上传《采购2026降本台账》Excel 文件。</p>
+      <div class="hint">数据只在当前浏览器中解析，不会上传到服务器。GitHub Pages 仅负责托管这个静态页面。</div>
+    </aside>
+
+    <main>
+      <section class="metrics">
+        <div class="metric"><span>配件降本总额</span><strong id="metricParts">--</strong></div>
+        <div class="metric"><span>跨境成品降本总额</span><strong id="metricCross">--</strong></div>
+        <div class="metric"><span>配件供应商数</span><strong id="metricSuppliers">--</strong></div>
+        <div class="metric"><span>配件品号数</span><strong id="metricPartsCount">--</strong></div>
+      </section>
+
+      <section class="section">
+        <div class="tabs">
+          <button class="tab active" data-panel="overviewPanel">总览</button>
+          <button class="tab" data-panel="auditPanel">对账审计</button>
+          <button class="tab" data-panel="detailPanel">数据明细</button>
+        </div>
+
+        <div id="overviewPanel">
+          <div class="grid-2">
+            <div id="supplierChart" class="empty">上传并解析 Excel 后显示供应商降本贡献排行。</div>
+            <div id="monthlyChart" class="empty">上传并解析 Excel 后显示月度降本趋势。</div>
+          </div>
+        </div>
+
+        <div id="auditPanel" class="hidden">
+          <div id="auditSummary" class="empty">上传并解析 Excel 后显示 Q1 对账异常。</div>
+          <div id="auditTable" class="table-wrap hidden" style="margin-top: 12px;"></div>
+        </div>
+
+        <div id="detailPanel" class="hidden">
+          <div class="filters">
+            <div>
+              <label for="supplierFilter">供应商筛选</label>
+              <select id="supplierFilter" disabled><option value="">全部</option></select>
+            </div>
+            <div>
+              <label for="keywordFilter">搜索品号 / 中文名称 / 规格</label>
+              <input id="keywordFilter" type="search" placeholder="输入关键词" disabled />
+            </div>
+            <button id="downloadCsv" class="secondary" disabled>下载 CSV</button>
+          </div>
+          <div id="detailTable" class="table-wrap"><div class="empty">上传并解析 Excel 后显示配件采购明细。</div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const BASIC = {
+      seq: 0,
+      supplier: 1,
+      partNo: 2,
+      partName: 3,
+      spec: 4,
+      buyer: 5,
+      totalReduction: 7,
+    };
+
+    const monthMaps = Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      const start = 9 + i * 7;
+      return {
+        month,
+        price: start,
+        verifiedPrice: start + 1,
+        priceDiff: start + 2,
+        quantity: start + 3,
+        verifiedQuantity: start + 4,
+        quantityDiff: start + 5,
+        amount: start + 6,
+      };
+    });
+
+    let workbook = null;
+    let partsRows = [];
+    let detailRows = [];
+
+    const $ = (id) => document.getElementById(id);
+    const money = (value) => `¥${Number(value || 0).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const text = (value) => value === undefined || value === null ? "" : String(value).trim();
+
+    function numberValue(value) {
+      if (value === undefined || value === null || value === "") return 0;
+      if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+      const cleaned = String(value).replace(/[,\s￥¥]/g, "");
+      if (cleaned === "" || cleaned === "-" || cleaned === "--") return 0;
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function findSheet(names, keywords) {
+      return names.find((name) => keywords.every((keyword) => name.includes(keyword))) || "";
+    }
+
+    function populateSheetSelects(names) {
+      const partsDefault = findSheet(names, ["配件采购"]) || names[0] || "";
+      const crossDefault = findSheet(names, ["成品采购", "跨境"]);
+
+      $("partsSheet").innerHTML = names.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("");
+      $("partsSheet").value = partsDefault;
+      $("partsSheet").disabled = false;
+
+      $("crossSheet").innerHTML = `<option value="">不读取</option>` + names.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("");
+      $("crossSheet").value = crossDefault || "";
+      $("crossSheet").disabled = false;
+      $("parseBtn").disabled = false;
+    }
+
+    function sheetToRows(sheetName) {
+      if (!sheetName) return [];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }).slice(2);
+      let lastSupplier = "";
+      return rows
+        .filter((row) => row.some((cell) => text(cell) !== ""))
+        .map((row) => {
+          const copy = row.slice();
+          if (text(copy[BASIC.supplier])) lastSupplier = text(copy[BASIC.supplier]);
+          copy[BASIC.supplier] = lastSupplier;
+          return copy;
+        })
+        .filter((row) => text(row[BASIC.partNo]) || text(row[BASIC.partName]))
+        .filter((row) => text(row[BASIC.supplier]) !== "合计");
+    }
+
+    function totalReduction(rows) {
+      const summaryTotal = rows.reduce((sum, row) => sum + numberValue(row[BASIC.totalReduction]), 0);
+      if (summaryTotal !== 0) return summaryTotal;
+      return monthMaps.reduce((sum, m) => sum + rows.reduce((inner, row) => inner + numberValue(row[m.amount]), 0), 0);
+    }
+
+    function supplierSummary(rows, topN) {
+      const map = new Map();
+      rows.forEach((row) => {
+        const supplier = text(row[BASIC.supplier]);
+        if (!supplier) return;
+        map.set(supplier, (map.get(supplier) || 0) + numberValue(row[BASIC.totalReduction]));
+      });
+      return Array.from(map, ([supplier, amount]) => ({ supplier, amount }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, topN);
+    }
+
+    function monthlySummary(rows) {
+      return monthMaps
+        .map((m) => ({
+          month: `${m.month}月`,
+          amount: rows.reduce((sum, row) => sum + numberValue(row[m.amount]), 0),
+        }))
+        .filter((item) => item.amount !== 0);
+    }
+
+    function q1Mismatches(rows) {
+      const q1 = monthMaps.slice(0, 3);
+      const result = [];
+      rows.forEach((row, index) => {
+        q1.forEach((m) => {
+          const priceDiff = numberValue(row[m.priceDiff]);
+          const quantityDiff = numberValue(row[m.quantityDiff]);
+          if (priceDiff !== 0 || quantityDiff !== 0) {
+            result.push({
+              "Excel行号": index + 3,
+              "供应商名称": text(row[BASIC.supplier]),
+              "品号": text(row[BASIC.partNo]),
+              "中文名称": text(row[BASIC.partName]),
+              "月份": `${m.month}月`,
+              "单价差异": priceDiff,
+              "数量差异": quantityDiff,
+            });
+          }
+        });
+      });
+      return result;
+    }
+
+    function buildDetailRows(rows) {
+      return rows.map((row) => ({
+        "序号": text(row[BASIC.seq]),
+        "供应商名称": text(row[BASIC.supplier]),
+        "品号": text(row[BASIC.partNo]),
+        "中文名称": text(row[BASIC.partName]),
+        "规格": text(row[BASIC.spec]),
+        "下单人": text(row[BASIC.buyer]),
+        "降本金额汇总": numberValue(row[BASIC.totalReduction]),
+      }));
+    }
+
+    function renderMetrics(crossRows) {
+      $("metricParts").textContent = money(totalReduction(partsRows));
+      $("metricCross").textContent = money(totalReduction(crossRows));
+      $("metricSuppliers").textContent = new Set(partsRows.map((row) => text(row[BASIC.supplier])).filter(Boolean)).size.toLocaleString("zh-CN");
+      $("metricPartsCount").textContent = new Set(partsRows.map((row) => text(row[BASIC.partNo])).filter(Boolean)).size.toLocaleString("zh-CN");
+    }
+
+    function renderCharts() {
+      const topN = Number($("topN").value);
+      const suppliers = supplierSummary(partsRows, topN).reverse();
+      const monthly = monthlySummary(partsRows);
+
+      if (suppliers.length) {
+        $("supplierChart").classList.remove("empty");
+        Plotly.newPlot("supplierChart", [{
+          type: "bar",
+          orientation: "h",
+          x: suppliers.map((item) => item.amount),
+          y: suppliers.map((item) => item.supplier),
+          marker: { color: "#07847f" },
+          text: suppliers.map((item) => item.amount.toLocaleString("zh-CN")),
+          textposition: "auto",
+        }], {
+          title: "Top 供应商降本贡献",
+          margin: { l: 120, r: 24, t: 48, b: 40 },
+          height: Math.max(380, suppliers.length * 28 + 90),
+          xaxis: { title: "降本金额" },
+          yaxis: { title: "" },
+        }, { responsive: true, displayModeBar: false });
+      } else {
+        $("supplierChart").className = "empty";
+        $("supplierChart").textContent = "暂无供应商降本金额数据。";
+      }
+
+      if (monthly.length) {
+        $("monthlyChart").classList.remove("empty");
+        Plotly.newPlot("monthlyChart", [{
+          type: "scatter",
+          mode: "lines+markers",
+          x: monthly.map((item) => item.month),
+          y: monthly.map((item) => item.amount),
+          line: { color: "#1769e0", width: 3 },
+          marker: { size: 8 },
+        }], {
+          title: "月度降本趋势",
+          margin: { l: 70, r: 24, t: 48, b: 40 },
+          height: 380,
+          yaxis: { title: "降本金额" },
+        }, { responsive: true, displayModeBar: false });
+      } else {
+        $("monthlyChart").className = "empty";
+        $("monthlyChart").textContent = "暂无月度降本金额数据。";
+      }
+    }
+
+    function renderAudit() {
+      const rows = q1Mismatches(partsRows);
+      if (!rows.length) {
+        $("auditSummary").className = "hint good";
+        $("auditSummary").textContent = "Q1 未发现非零单价差异或数量差异。";
+        $("auditTable").classList.add("hidden");
+        return;
+      }
+      const priceIssues = rows.filter((row) => row["单价差异"] !== 0).length;
+      const quantityIssues = rows.filter((row) => row["数量差异"] !== 0).length;
+      $("auditSummary").className = "hint warn";
+      $("auditSummary").textContent = `发现 ${rows.length} 条 Q1 对账异常，其中单价差异 ${priceIssues} 条，数量差异 ${quantityIssues} 条。`;
+      $("auditTable").innerHTML = renderTable(rows);
+      $("auditTable").classList.remove("hidden");
+    }
+
+    function renderDetails() {
+      detailRows = buildDetailRows(partsRows);
+      const suppliers = Array.from(new Set(detailRows.map((row) => row["供应商名称"]).filter(Boolean))).sort();
+      $("supplierFilter").innerHTML = `<option value="">全部</option>` + suppliers.map((supplier) => `<option value="${escapeAttr(supplier)}">${escapeHtml(supplier)}</option>`).join("");
+      $("supplierFilter").disabled = false;
+      $("keywordFilter").disabled = false;
+      $("downloadCsv").disabled = false;
+      applyDetailFilters();
+    }
+
+    function applyDetailFilters() {
+      const supplier = $("supplierFilter").value;
+      const keyword = $("keywordFilter").value.trim().toLowerCase();
+      let rows = detailRows.slice();
+      if (supplier) rows = rows.filter((row) => row["供应商名称"] === supplier);
+      if (keyword) {
+        rows = rows.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(keyword)));
+      }
+      $("detailTable").innerHTML = rows.length ? renderTable(rows) : `<div class="empty">没有匹配的明细。</div>`;
+    }
+
+    function renderTable(rows) {
+      if (!rows.length) return `<div class="empty">暂无数据。</div>`;
+      const headers = Object.keys(rows[0]);
+      const head = `<thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>`;
+      const body = `<tbody>${rows.map((row) => `<tr>${headers.map((h) => `<td>${formatCell(row[h])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+      return `<table>${head}${body}</table>`;
+    }
+
+    function formatCell(value) {
+      if (typeof value === "number") return escapeHtml(value.toLocaleString("zh-CN", { maximumFractionDigits: 4 }));
+      return escapeHtml(value);
+    }
+
+    function escapeHtml(value) {
+      return text(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    function downloadCurrentCsv() {
+      const supplier = $("supplierFilter").value;
+      const keyword = $("keywordFilter").value.trim().toLowerCase();
+      let rows = detailRows.slice();
+      if (supplier) rows = rows.filter((row) => row["供应商名称"] === supplier);
+      if (keyword) rows = rows.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(keyword)));
+      if (!rows.length) return;
+
+      const headers = Object.keys(rows[0]);
+      const csv = [
+        headers.join(","),
+        ...rows.map((row) => headers.map((h) => `"${String(row[h] ?? "").replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+      const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "procurement_detail.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function parseWorkbook() {
+      if (!workbook) return;
+      const partsSheet = $("partsSheet").value;
+      const crossSheet = $("crossSheet").value;
+      partsRows = sheetToRows(partsSheet);
+      const crossRows = sheetToRows(crossSheet);
+
+      if (!partsRows.length) {
+        $("status").textContent = "配件采购工作表没有读取到有效数据。";
+        return;
+      }
+
+      renderMetrics(crossRows);
+      renderCharts();
+      renderAudit();
+      renderDetails();
+      $("status").textContent = `已解析 ${partsRows.length.toLocaleString("zh-CN")} 条配件采购明细。`;
+    }
+
+    $("fileInput").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      $("status").textContent = "正在读取 Excel 文件...";
+      try {
+        const buffer = await file.arrayBuffer();
+        workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+        populateSheetSelects(workbook.SheetNames);
+        $("status").textContent = "文件已读取，请确认工作表后点击解析数据。";
+      } catch (error) {
+        $("status").textContent = `读取失败：${error.message}`;
+      }
+    });
+
+    $("parseBtn").addEventListener("click", parseWorkbook);
+    $("topN").addEventListener("change", () => { if (partsRows.length) renderCharts(); });
+    $("supplierFilter").addEventListener("change", applyDetailFilters);
+    $("keywordFilter").addEventListener("input", applyDetailFilters);
+    $("downloadCsv").addEventListener("click", downloadCurrentCsv);
+
+    document.querySelectorAll(".tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
+        button.classList.add("active");
+        ["overviewPanel", "auditPanel", "detailPanel"].forEach((id) => $(id).classList.add("hidden"));
+        $(button.dataset.panel).classList.remove("hidden");
+      });
+    });
+  </script>
+</body>
+</html>

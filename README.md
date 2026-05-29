@@ -19,6 +19,20 @@ pip install -r requirements.txt
 streamlit run src/app.py
 ```
 
+## GitHub Pages 静态版
+
+仓库还包含一个可直接部署到 GitHub Pages 的静态页面：
+
+```text
+docs/upload.html
+```
+
+静态版在浏览器内解析 Excel，不需要 Python 服务。启用 GitHub Pages 后，可通过类似下面的地址访问：
+
+```text
+https://sunlizhu521-alt.github.io/cgjb01/upload.html
+```
+
 ## 数据解析规则
 
 - 跳过 Excel 前两行表头，从第 3 行开始读取数据
